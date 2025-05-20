@@ -1,7 +1,6 @@
 import os
 import json
-from flask import Flask, redirect, jsonify, send_file
-from urllib.parse import unquote
+from flask import Flask, redirect, jsonify, send_file, request
 from io import BytesIO
 import qrcode
 
@@ -63,10 +62,32 @@ def get_stats(qr_id):
         "clicks": data["counters"].get(qr_id, 0)
     })
 
+@app.route("/register", methods=["POST"])
+def register_qr():
+    payload = request.get_json(force=True)
+    qr_id = payload.get("qr_id")
+    title = payload.get("title")
+    long_url = payload.get("long_url")
+    short_url = payload.get("short_url")
+
+    if not qr_id or not title or not long_url or not short_url:
+        return jsonify({"error": "Недостаточно данных"}), 400
+
+    data = load_data()
+    data["links"][qr_id] = {
+        "title": title,
+        "long_url": long_url,
+        "short_url": short_url
+    }
+    if qr_id not in data["counters"]:
+        data["counters"][qr_id] = 0
+    save_data(data)
+    return jsonify({"status": "ok"})
+
 @app.route("/")
 def home():
     return "QR-трекер работает!"
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000)) 
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
